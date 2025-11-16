@@ -20,7 +20,7 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
   const [showNewBtn, setShowNewBtn] = useState(false)
   const messagesRef = useRef(null)
 
-  const INPUT_HEIGHT = 96
+  const INPUT_HEIGHT = 72
   const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
 
   function isGreeting(text) {
@@ -130,15 +130,12 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
         }
         setHistory(prev => [...prev, assistantMsg])
 
-        // update left panel title immediately for first non-greeting question
         try {
           if (typeof onTitleUpdate === 'function' && !isGreeting(question)) {
             const newTitle = truncateTitle(question)
             onTitleUpdate(sessionId, newTitle)
           }
-        } catch (e) {
-          // ignore any errors from callback
-        }
+        } catch (e) {}
       })
       .catch(() => {
         setError('Failed to send question. Check console / backend.')
@@ -264,7 +261,7 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
           <div className="w-full max-w-3xl px-4 pb-4">
             <div className="flex justify-center">
               <div
-                className={`mx-auto w-full sm:max-w-[80%] md:max-w-[70%] lg:max-w-2xl flex items-center border rounded-full px-4 py-3 transition-all ${
+                className={`mx-auto w-full sm:max-w-[80%] md:max-w-[70%] lg:max-w-2xl flex items-center border rounded-full px-4 py-2 sm:py-3 transition-all mt-2 sm:mt-0 ${
                   theme === 'dark'
                     ? 'bg-gray-900 border-gray-800 shadow-sm'
                     : 'bg-white border-gray-300 shadow-md'
