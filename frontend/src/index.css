@@ -1,0 +1,68 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+html, body, #root { height: 100%; }
+body { overflow: hidden; }
+
+.scroll-smooth { scroll-behavior: smooth; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.08); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+.dark ::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.12); }
+
+.dot-pulse { animation: pulse 1s infinite; }
+@keyframes pulse { 0% { transform: scale(1); opacity: 1 } 50% { transform: scale(0.7); opacity: 0.7 } 100% { transform: scale(1); opacity: 1 } }
+
+.dot-typing { background-color: rgba(0,0,0,0.6); }
+.dark .dot-typing { background-color: rgba(255,255,255,0.8); }
+.dot-typing { width: 8px; height: 8px; margin-right: 6px; display: inline-block; border-radius: 9999px; animation: blink 1.4s infinite both; opacity: 0.6; }
+.dot-typing:nth-child(2) { animation-delay: 0.2s; }
+.dot-typing:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0% { opacity: .2; transform: translateY(0) } 20% { opacity: 1; transform: translateY(-3px) } 40% { opacity: .2; transform: translateY(0) } 100% { opacity: .2; transform: translateY(0) } }
+
+pre { border-radius: 8px; padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Segoe UI Mono", monospace; }
+pre code { white-space: pre-wrap; }
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; }
+
+
+.message-bubble { box-shadow: 0 4px 18px rgba(2,6,23,0.2); }
+
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { border-radius: 9999px; background-color: rgba(255,255,255,0.08); }
+.inputClass{
+  text-align: center;
+}
+
+/* neutralize Chrome autofill background so input bg follows theme/wrapper */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: inherit !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+.dark input:-webkit-autofill,
+.dark textarea:-webkit-autofill,
+.dark select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px rgba(31,41,55,1) inset !important; /* dark gray fallback */
+  box-shadow: 0 0 0 1000px rgba(31,41,55,1) inset !important;
+}

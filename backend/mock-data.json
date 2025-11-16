@@ -1,0 +1,45 @@
+{
+  "sessions": [
+    {
+      "id": "zAFOqQCo",
+      "title": "Session 1763280545305",
+      "history": []
+    }
+  ],
+  "templates": {
+    "tableResponse": {
+      "title": "Sample Sales Report",
+      "description": "This table shows quarterly sales for product lines.",
+      "columns": [
+        "Product",
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4"
+      ],
+      "rows": [
+        [
+          "Alpha",
+          12000,
+          15000,
+          13000,
+          17000
+        ],
+        [
+          "Beta",
+          8000,
+          9500,
+          7000,
+          11000
+        ],
+        [
+          "Gamma",
+          5000,
+          6000,
+          4500,
+          7000
+        ]
+      ]
+    }
+  }
+}
