@@ -20,7 +20,16 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
   const [showNewBtn, setShowNewBtn] = useState(false)
   const messagesRef = useRef(null)
 
-  const INPUT_HEIGHT = 72
+  const [inputHeight, setInputHeight] = useState(typeof window !== 'undefined' && window.innerWidth < 640 ? 64 : 96)
+  useEffect(() => {
+    function handleResize() {
+      setInputHeight(window.innerWidth < 640 ? 64 : 96)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
 
   function isGreeting(text) {
@@ -196,8 +205,9 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
         onScroll={handleScroll}
         className="absolute left-0 right-0 top-0 overflow-y-auto scroll-smooth px-4 py-6"
         style={{
-          bottom: `${INPUT_HEIGHT}px`,
-          backgroundColor: theme === 'dark' ? '#000000' : '#ffffff'
+          bottom: `${inputHeight}px`,
+          backgroundColor: theme === 'dark' ? '#000000' : '#ffffff',
+          paddingBottom: 16
         }}
       >
         <div className="max-w-3xl mx-auto w-full flex flex-col gap-3">
@@ -261,20 +271,19 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
           <div className="w-full max-w-3xl px-4 pb-4">
             <div className="flex justify-center">
               <div
-                className={`mx-auto w-full sm:max-w-[80%] md:max-w-[70%] lg:max-w-2xl flex items-center border rounded-full px-4 py-2 sm:py-3 transition-all mt-2 sm:mt-0 ${
-                  theme === 'dark'
-                    ? 'bg-gray-900 border-gray-800 shadow-sm'
-                    : 'bg-white border-gray-300 shadow-md'
-                }`}
-                style={{ transform: 'translateY(-6px)' }}
+                className={`mx-auto w-full sm:max-w-[80%] md:max-w-[70%] lg:max-w-2xl flex items-center border rounded-full px-4 ${inputHeight <= 72 ? 'py-2 mt-2' : 'py-3 mt-0'} transition-all`}
+                style={{
+                  background: theme === 'dark' ? '#111827' : '#ffffff',
+                  borderColor: theme === 'dark' ? '#1f2937' : '#d1d5db',
+                  boxShadow: theme === 'dark' ? 'none' : '0 2px 6px rgba(0,0,0,0.08)',
+                  transform: 'translateY(0)'
+                }}
               >
                 <input
                   value={q}
                   onChange={e => setQ(e.target.value)}
                   onKeyDown={onKeyDown}
-                  className={`flex-1 bg-transparent appearance-none outline-none py-1 rounded-full px-3 ${
-                    theme === 'dark' ? 'text-gray-100 placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'
-                  }`}
+                  className={`flex-1 bg-transparent appearance-none outline-none rounded-full px-3 ${inputHeight <= 72 ? 'py-2' : 'py-1'} ${theme === 'dark' ? 'text-gray-100 placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'}`}
                   autoComplete="off"
                   placeholder={sessionId ? 'Ask a question...' : 'Start a session first'}
                 />
@@ -282,9 +291,7 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
                 <button
                   onClick={onSend}
                   disabled={loading || !sessionId}
-                  className={`ml-3 px-4 py-2 rounded-full font-medium transition-all ${
-                    loading || !sessionId ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 text-white'
-                  }`}
+                  className={`ml-3 px-4 py-2 rounded-full font-medium transition-all ${loading || !sessionId ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                 >
                   {loading ? '...' : 'Send'}
                 </button>
