@@ -29,10 +29,16 @@ function isGreeting(text) {
   return /^(hi|hello|hey|hlo|yo)([!. ]|$)/i.test(t)
 }
 
+function truncateTitle(t, n = 48) {
+  if (!t) return ''
+  const s = String(t).trim()
+  return s.length > n ? s.slice(0, n - 3) + '...' : s
+}
+
 async function askGemini(question) {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error("GEMINI_API_KEY missing in .env")
-  const model = "gemini-2.5-pro"
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-pro"
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`
 
   const payload = {
@@ -86,10 +92,13 @@ async function askGeminiWithRetry(question, retries = 3) {
   }
 }
 
+app.get('/health', (req, res) => {
+  res.json({ ok: true })
+})
+
 app.post("/api/start", (req, res) => {
   const data = readData()
   const id = nanoid(8)
-  // Start with a placeholder title; will be updated on first real question
   const session = { id, title: "New Chat", history: [] }
   data.sessions.unshift(session)
   writeData(data)
@@ -124,6 +133,10 @@ app.post("/api/ask", async (req, res) => {
 
     const session = data.sessions.find(s => s.id === sessionId)
     if (session) {
+      const currentTitle = String(session.title || '').trim()
+      if ((!currentTitle || currentTitle === 'New Chat') && !isGreeting(question)) {
+        session.title = truncateTitle(question)
+      }
       session.history.push(answer)
       writeData(data)
     }
@@ -156,7 +169,6 @@ app.post("/api/feedback", (req, res) => {
   const answer = session.history.find(h => h.id === answerId)
   if (!answer) return res.status(404).json({ error: "answer not found" })
 
-
   if (!answer.feedback) {
     answer.feedback = { likes: 0, dislikes: 0 }
   }
@@ -187,6 +199,16 @@ app.delete("/api/session/:id", (req, res) => {
   writeData(data)
   res.json({ ok: true })
 })
+
+const buildPath = path.join(__dirname, 'frontend', 'build')
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath))
+  app.get('*', (req, res) => {
+    const index = path.join(buildPath, 'index.html')
+    if (fs.existsSync(index)) return res.sendFile(index)
+    res.status(404).send('Not found')
+  })
+}
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {

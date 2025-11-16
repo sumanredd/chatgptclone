@@ -4,6 +4,8 @@ import TopBar from '../components/TopBar'
 import ChatPanel from '../components/ChatPanel'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ThemeContext } from '../ThemeContext'
+const API_BASE = 'https://chatgptclone-1-ysfy.onrender.com'
+
 
 export default function ChatPage() {
   const { theme } = useContext(ThemeContext)
@@ -21,7 +23,7 @@ export default function ChatPage() {
   async function fetchSessions() {
     setLoadingSessions(true)
     try {
-      const res = await fetch('http://localhost:4000/api/sessions')
+      const res = await fetch(`${API_BASE}/api/sessions`)
       const json = await res.json()
       const list = json || []
       setSessions(list)
@@ -63,7 +65,7 @@ export default function ChatPage() {
           navigate('/', { replace: true })
         }
       }
-      const res = await fetch(`http://localhost:4000/api/session/${id}`, {
+      const res = await fetch(`${API_BASE}/api/session/${id}`, {
         method: 'DELETE'
       })
       if (!res.ok) {
@@ -78,7 +80,7 @@ export default function ChatPage() {
 
   async function startNewChat() {
     try {
-      const res = await fetch('http://localhost:4000/api/start', {
+      const res = await fetch(`${API_BASE}/api/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: `Session ${Date.now()}` })

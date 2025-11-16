@@ -21,6 +21,8 @@ export default function ChatPanel({ sessionId }) {
   const messagesRef = useRef(null)
 
   const INPUT_HEIGHT = 96
+  const API_BASE = 'https://chatgptclone-1-ysfy.onrender.com'
+
 
   useEffect(() => {
     setError(null)
@@ -28,7 +30,7 @@ export default function ChatPanel({ sessionId }) {
       setHistory([])
       return
     }
-    fetch(`http://localhost:4000/api/session/${sessionId}`)
+    fetch(`${API_BASE}/api/session/${sessionId}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
@@ -98,7 +100,7 @@ export default function ChatPanel({ sessionId }) {
     setQ('')
     setLoading(true)
 
-    fetch('http://localhost:4000/api/ask', {
+    fetch(`${API_BASE}/api/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, question })
@@ -133,7 +135,7 @@ export default function ChatPanel({ sessionId }) {
 
   function sendFeedback(answerId, type) {
     if (!sessionId) return
-    fetch('http://localhost:4000/api/feedback', {
+    fetch(`${API_BASE}/api/feedback`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, answerId, type })
