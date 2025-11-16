@@ -5,171 +5,128 @@ export default function TableAnswer({ answer }) {
   const { theme } = useContext(ThemeContext)
   if (!answer) return null
 
-  if (answer.type === 'table') {
-    return (
-      <div>
-        <div className={`mb-2 text-sm font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-black'}`}>{answer.title}</div>
-        <div className={`mb-2 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{answer.description}</div>
-        <div className="overflow-auto rounded">
-          <table className="min-w-full border-collapse">
-            <thead>
-              <tr>
-                {answer.columns.map((c, i) => (
-                  <th key={i} className={`p-2 border ${theme === 'dark' ? 'dark:border-gray-700 bg-gray-800 text-gray-100' : 'border-gray-200 bg-gray-100 text-black'}`}>
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {answer.rows.map((row, ri) => (
-                <tr key={ri}>
-                  {row.map((cell, ci) => (
-                    <td key={ci} className={`p-2 border ${theme === 'dark' ? 'border-gray-800 text-gray-100' : 'border-gray-200 text-black'}`}>
-                      {String(cell)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
+  if (typeof answer === 'string') {
+    return <FormattedText text={answer} theme={theme} />
   }
 
-  if (answer.type === 'text' || typeof answer.text === 'string') {
+  if (answer.type === 'text' && answer.text) {
     return <FormattedText text={answer.text} theme={theme} />
   }
 
-  return <pre className={`text-xs ${theme === 'dark' ? 'text-gray-100' : 'text-black'}`}>{JSON.stringify(answer, null, 2)}</pre>
+  return (
+    <pre className={`whitespace-pre-wrap break-words ${theme === 'dark' ? 'text-gray-100' : 'text-black'}`}>
+      {JSON.stringify(answer, null, 2)}
+    </pre>
+  )
 }
 
 function FormattedText({ text, theme }) {
   if (!text) return null
-  const blocks = splitIntoBlocks(text)
+  const blocks = parseBlocks(text)
+
   return (
-    <div className={`text-sm whitespace-pre-wrap leading-relaxed ${theme === 'dark' ? 'text-gray-100' : 'text-black'}`}>
-      {blocks.map((block, i) => (
-        <div key={i}>{renderBlock(block, theme)}</div>
-      ))}
+    <div className={`leading-relaxed break-words whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+      {blocks.map((b, i) => render(b, theme, i))}
     </div>
   )
 }
 
-function splitIntoBlocks(text) {
-  const lines = String(text).split('\n')
+function parseBlocks(text) {
+  const lines = text.split('\n')
   const blocks = []
   let i = 0
+
   while (i < lines.length) {
     const line = lines[i]
-    if (line.trim().startsWith('```')) {
-      const lang = line.trim().slice(3).trim()
+
+    if (line.startsWith('```')) {
+      const code = []
       i++
-      const codeLines = []
-      while (i < lines.length && !lines[i].trim().startsWith('```')) {
-        codeLines.push(lines[i])
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        code.push(lines[i])
         i++
       }
       i++
-      blocks.push({ type: 'code', lang, content: codeLines.join('\n') })
+      blocks.push({ type: 'code', content: code.join('\n') })
       continue
     }
-    const h1 = line.match(/^#\s+(.*)$/)
-    if (h1) {
-      blocks.push({ type: 'h1', content: h1[1].trim() })
+
+    if (/^####\s+/.test(line)) {
+      blocks.push({ type: 'h4', content: line.replace(/^####\s+/, '') })
       i++
       continue
     }
-    const h2 = line.match(/^##\s+(.*)$/)
-    if (h2) {
-      blocks.push({ type: 'h2', content: h2[1].trim() })
+
+    if (/^###\s+/.test(line)) {
+      blocks.push({ type: 'h3', content: line.replace(/^###\s+/, '') })
       i++
       continue
     }
-    const h3 = line.match(/^###\s+(.*)$/)
-    if (h3) {
-      blocks.push({ type: 'h3', content: h3[1].trim() })
+
+    if (/^##\s+/.test(line)) {
+      blocks.push({ type: 'h2', content: line.replace(/^##\s+/, '') })
       i++
       continue
     }
-    const h4 = line.match(/^####\s+(.*)$/)
-    if (h4) {
-      blocks.push({ type: 'h4', content: h4[1].trim() })
+
+    if (/^#\s+/.test(line)) {
+      blocks.push({ type: 'h1', content: line.replace(/^#\s+/, '') })
       i++
       continue
     }
-    if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-      const items = []
-      while (i < lines.length && (lines[i].trim().startsWith('- ') || lines[i].trim().startsWith('* '))) {
-        items.push(lines[i].trim().slice(2))
-        i++
-      }
-      blocks.push({ type: 'list', items })
+
+    if (/^\d+\.\s/.test(line)) {
+      blocks.push({ type: 'li-num', content: line.replace(/^\d+\.\s/, '') })
+      i++
       continue
     }
-    const para = []
-    while (i < lines.length && lines[i].trim() !== '') {
-      para.push(lines[i])
+
+    if (/^[-*]\s/.test(line)) {
+      blocks.push({ type: 'li', content: line.replace(/^[-*]\s/, '') })
       i++
+      continue
     }
-    if (para.length > 0) blocks.push({ type: 'p', content: para.join(' ') })
+
+    blocks.push({ type: 'p', content: line })
     i++
   }
+
   return blocks
 }
 
-function renderBlock(block, theme) {
+function render(block, theme, key) {
+  const bold = text =>
+    text.split(/(\*\*.*?\*\*)/g).map((p, i) =>
+      p.startsWith('**') && p.endsWith('**')
+        ? <strong key={i}>{p.slice(2, -2)}</strong>
+        : p
+    )
+
+  const base = theme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+
   switch (block.type) {
     case 'h1':
-      return <div className="text-3xl font-extrabold my-4">{block.content}</div>
+      return <h1 key={key} className={`text-3xl font-bold my-3 ${base}`}>{bold(block.content)}</h1>
     case 'h2':
-      return <div className="text-2xl font-bold my-3">{block.content}</div>
+      return <h2 key={key} className={`text-xl font-bold my-2 ${base}`}>{bold(block.content)}</h2>
     case 'h3':
-      return <div className="text-xl font-semibold my-2">{block.content}</div>
+      return <h3 key={key} className={`text-lg font-semibold my-2 ${base}`}>{bold(block.content)}</h3>
     case 'h4':
-      return <div className="text-lg font-semibold my-2">{block.content}</div>
-    case 'list':
-      return (
-        <ul className="list-disc pl-5 my-2">
-          {block.items.map((item, i) => <li key={i}>{renderInline(item, theme)}</li>)}
-        </ul>
-      )
+      return <h4 key={key} className={`text-base font-semibold my-2 ${base}`}>{bold(block.content)}</h4>
+    case 'li':
+      return <li key={key} className={`ml-6 list-disc my-1 ${base}`}>{bold(block.content)}</li>
+    case 'li-num':
+      return <li key={key} className={`ml-6 list-decimal my-1 ${base}`}>{bold(block.content)}</li>
     case 'code':
       return (
-        <pre className={`my-3 p-3 rounded overflow-auto text-sm ${theme === 'dark' ? 'bg-gray-800 text-green-200' : 'bg-gray-100 text-gray-900'}`}>
-          <code>{block.content}</code>
-        </pre>
+        <pre key={key}
+          className={`p-3 my-3 rounded overflow-auto text-sm ${theme === 'dark' ? 'bg-gray-800 text-green-200' : 'bg-gray-200 text-gray-900'}`}
+        >{block.content}</pre>
       )
     case 'p':
-      return <p className="my-2">{renderInline(block.content, theme)}</p>
+      if (!block.content.trim()) return <div key={key} className="my-2" />
+      return <p key={key} className={`my-2 ${base}`}>{bold(block.content)}</p>
     default:
       return null
   }
-}
-
-function renderInline(text, theme) {
-  const parts = []
-  const boldRe = /\*\*(.*?)\*\*/
-  const codeRe = /`([^`]+)`/
-  let remaining = text
-  while (remaining.length) {
-    const boldMatch = remaining.match(boldRe)
-    const codeMatch = remaining.match(codeRe)
-    const matches = [boldMatch, codeMatch].filter(Boolean)
-    if (matches.length === 0) {
-      parts.push(remaining)
-      break
-    }
-    const next = matches.sort((a, b) => a.index - b.index)[0]
-    const before = remaining.slice(0, next.index)
-    if (before) parts.push(before)
-    if (next === boldMatch) {
-      parts.push(<strong key={parts.length}>{next[1]}</strong>)
-    } else if (next === codeMatch) {
-      parts.push(<code key={parts.length} className={`px-1 rounded text-[0.85rem] ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>{next[1]}</code>)
-    }
-    remaining = remaining.slice(next.index + next[0].length)
-  }
-  return parts.map((p, i) => (typeof p === 'string' ? <span key={i}>{p}</span> : p))
 }

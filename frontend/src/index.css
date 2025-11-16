@@ -66,3 +66,55 @@ select:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px rgba(31,41,55,1) inset !important; /* dark gray fallback */
   box-shadow: 0 0 0 1000px rgba(31,41,55,1) inset !important;
 }
+/* ensure the messages container doesn't allow horizontal overflow */
+.messages-container {
+  overflow-x: hidden;
+}
+
+/* force wrapping for inline/code/pre content */
+.answer-content pre,
+.answer-content code,
+.answer-content td,
+.answer-content th,
+.answer-content p,
+.answer-content li {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* make tables responsive and never force parent wider than container */
+.answer-content .table-responsive {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* images scale down */
+.answer-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.answer-content pre,
+.answer-content code,
+.answer-content td,
+.answer-content th,
+.answer-content p,
+.answer-content li {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.table-responsive {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.messages-container {
+  overflow-x: hidden;
+}

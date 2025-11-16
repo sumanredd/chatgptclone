@@ -13,8 +13,8 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const [activeSession, setActiveSession] = useState(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
-  const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
-
+  // const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
+  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:4000'
   useEffect(() => {
     fetchSessions()
   }, [])
@@ -107,15 +107,17 @@ export default function ChatPage() {
   }
 
   function handleTitleUpdate(sessionId, newTitle) {
-    setSessions(prev =>
-      prev.map(s => {
-        const sid = s.id || s.sessionId || s._id
-        if (sid === sessionId) {
-          return { ...s, title: newTitle }
-        }
-        return s
-      })
+    setSessions(prev => 
+      prev.map(s => 
+        s.id === sessionId 
+          ? { ...s, title: newTitle } 
+          : s
+      )
     )
+  }
+
+  function handleSessionUpdate() {
+    fetchSessions() 
   }
 
   const pageBg = theme === 'dark' ? '#000000' : '#ffffff'
@@ -142,7 +144,11 @@ export default function ChatPage() {
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeSession ? (
             <div className="h-full min-h-0">
-              <ChatPanel key={activeSession} sessionId={activeSession} onTitleUpdate={handleTitleUpdate} />
+              <ChatPanel 
+                sessionId={activeSession} 
+                onTitleUpdate={handleTitleUpdate}
+                onSessionUpdate={handleSessionUpdate}
+              />
             </div>
           ) : (
             <div className="h-full min-h-0 flex items-center justify-center p-6">

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useContext } from 'react'
-import TableAnswer from '../components/TableAnswer'
+import TableAnswer from './TableAnswer'
 import { ThemeContext } from '../ThemeContext'
 
-export default function ChatPanel({ sessionId, onTitleUpdate }) {
+export default function ChatPanel({ sessionId, onTitleUpdate, onSessionUpdate }) {
   const { theme } = useContext(ThemeContext)
 
   useEffect(() => {
@@ -21,19 +21,7 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
   const messagesRef = useRef(null)
 
   const INPUT_HEIGHT = 96
-  const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
-
-  function isGreeting(text) {
-    if (!text) return false
-    const t = text.toLowerCase().trim()
-    return /^(hi|hello|hey|hlo|yo)([!. ]|$)/i.test(t)
-  }
-
-  function truncateTitle(t, n = 48) {
-    if (!t) return ''
-    const s = String(t).trim()
-    return s.length > n ? s.slice(0, n - 3) + '...' : s
-  }
+  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:4000'
 
   useEffect(() => {
     setError(null)
@@ -120,25 +108,25 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      .then(answer => {
-        const assistantText = answer?.response ?? answer?.answer ?? answer?.text ?? ''
+      .then(data => {
         const assistantMsg = {
-          id: answer?.id ?? `a-${Date.now()}`,
+          id: data.id ?? `a-${Date.now()}`,
           role: 'assistant',
-          response: assistantText,
-          feedback: answer?.feedback ?? null
+          question: data.question,
+          response: data.response,
+          feedback: data.feedback ?? { likes: 0, dislikes: 0 }
         }
         setHistory(prev => [...prev, assistantMsg])
+        setQ('')
 
-        // update left panel title immediately for first non-greeting question
-        try {
-          if (typeof onTitleUpdate === 'function' && !isGreeting(question)) {
-            const newTitle = truncateTitle(question)
-            onTitleUpdate(sessionId, newTitle)
-          }
-        } catch (e) {
-          // ignore any errors from callback
+     
+        const cleanTitle = stripMarkdown(data.sessionTitle ?? data.question ?? '')
+        if (cleanTitle && onTitleUpdate && sessionId) {
+          onTitleUpdate(sessionId, cleanTitle)
         }
+
+        
+        if (onSessionUpdate) onSessionUpdate()
       })
       .catch(() => {
         setError('Failed to send question. Check console / backend.')
@@ -174,86 +162,79 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
       })
   }
 
-  const cardBaseLight = 'bg-white border border-gray-200 text-black'
-  const cardBaseDark = 'bg-gray-900 border border-gray-800 text-gray-100'
+  function stripMarkdown(s = '') {
+    return s
+      .replace(/^#+\s+/gm, '')           
+      .replace(/\*\*(.*?)\*\*/g, '$1')    
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')        
+      .replace(/_(.*?)_/g, '$1')
+      .replace(/`(.*?)`/g, '$1')         
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1') 
+      .trim()
+  }
+
+  const cardUser = theme === 'dark' ? 'bg-gradient-to-r from-gray-700 to-gray-800 text-white' : 'bg-green-600 text-white'
+  const cardAssistant = theme === 'dark' ? 'bg-gray-900 text-gray-100 border border-gray-800' : 'bg-gray-100 text-black border border-gray-200'
 
   return (
-    <div
-      className="relative flex-1 h-full"
-      style={{ backgroundColor: theme === 'dark' ? '#000000' : '#ffffff' }}
-    >
+    <div className="relative flex-1 h-full font-sans" style={{ backgroundColor: theme === 'dark' ? '#0b0b0b' : '#f5f7fb' }}>
       {error && (
-        <div
-          className="mb-3 p-2 rounded z-50"
-          style={{
-            background: theme === 'dark' ? '#3b0b0b' : '#fee2e2',
-            color: theme === 'dark' ? '#ffdede' : '#7f1d1d'
-          }}
-        >
+        <div className="mb-3 p-2 rounded z-50 mx-auto max-w-3xl text-center" style={{ background: theme === 'dark' ? '#3b0b0b' : '#fee2e2', color: theme === 'dark' ? '#ffdede' : '#7f1d1d' }}>
           {error}
         </div>
       )}
 
-      <div
-        ref={messagesRef}
-        onScroll={handleScroll}
-        className="absolute left-0 right-0 top-0 overflow-y-auto scroll-smooth px-4 py-6"
-        style={{
-          bottom: `${INPUT_HEIGHT}px`,
-          backgroundColor: theme === 'dark' ? '#000000' : '#ffffff'
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full flex flex-col gap-3">
+      <div ref={messagesRef} onScroll={handleScroll} className="absolute left-0 right-0 top-0 overflow-y-auto px-4 py-6" style={{ bottom: `${INPUT_HEIGHT}px` }}>
+        <div className="max-w-3xl mx-auto w-full flex flex-col gap-4">
+          <div className={`pt-2 pb-4 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Chat</div>
+          </div>
+
           {history.length === 0 && (
-            <div className={theme === 'dark' ? 'text-gray-400 text-center' : 'text-gray-600 text-center'}>
-              No messages yet. Start by sending a question.
-            </div>
+            <div className={`text-center py-12 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>No messages yet. Start by sending a question.</div>
           )}
 
           {history.map(h => {
             const isUser = h.role === 'user'
+         
             if (isUser) {
               return (
-                <div key={h.id} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <div
-                    className={`${theme === 'dark' ? cardBaseDark : cardBaseLight} p-3 rounded-xl inline-block break-words whitespace-pre-wrap max-w-[60%]`}
-                  >
-                    <div className={theme === 'dark' ? 'text-gray-100 text-right' : 'text-black text-right'}>
-                      {h.question}
-                    </div>
-                  </div>
-                </div>
-              )
-            } else {
-              return (
-                <div key={h.id} className={`${theme === 'dark' ? cardBaseDark : cardBaseLight} p-4 rounded-xl w-full break-words`}>
-                  <div className="w-full">
-                    <TableAnswer answer={h.response} />
-                    <div className="mt-3 flex items-center gap-3">
-                      <button
-                        onClick={() => sendFeedback(h.id, 'like')}
-                        className={theme === 'dark' ? 'text-gray-100' : 'text-black'}
-                      >
-                        👍 {h.feedback?.likes ?? 0}
-                      </button>
-                      <button
-                        onClick={() => sendFeedback(h.id, 'dislike')}
-                        className={theme === 'dark' ? 'text-gray-100' : 'text-black'}
-                      >
-                        👎 {h.feedback?.dislikes ?? 0}
-                      </button>
-                    </div>
+                <div key={h.id} className="flex justify-end mb-4">
+                  <div className={`rounded-2xl px-4 py-2 max-w-[72%]`} style={{ background: theme === 'dark' ? '#0f1724' : '#10b981', color: theme === 'dark' ? '#e6edf3' : '#ffffff' }}>
+                    <div className="text-sm break-words whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{h.question}</div>
                   </div>
                 </div>
               )
             }
+
+  
+            return (
+              <div key={h.id} className="mb-4">
+                {h.question && (
+                  <div className="flex justify-end mb-2">
+                    <div className={`rounded-2xl px-4 py-2 max-w-[72%]`} style={{ background: theme === 'dark' ? '#0f1724' : '#10b981', color: theme === 'dark' ? '#e6edf3' : '#ffffff' }}>
+                      <div className="text-sm break-words whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{h.question}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-start">
+                  <div className={`rounded-2xl p-4 max-w-[72%] ${theme === 'dark' ? 'bg-gray-900 border border-gray-800 text-gray-100' : 'bg-gray-100 border border-gray-200 text-black'}`} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                    <TableAnswer answer={h.response} />
+                    <div className="mt-3 flex items-center gap-3">
+                      <button onClick={() => sendFeedback(h.id, 'like')} className={`text-sm ${theme === 'dark' ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900'}`}>👍 {h.feedback?.likes ?? 0}</button>
+                      <button onClick={() => sendFeedback(h.id, 'dislike')} className={`text-sm ${theme === 'dark' ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900'}`}>👎 {h.feedback?.dislikes ?? 0}</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
           })}
 
           {loading && (
-            <div
-              className={`${theme === 'dark' ? cardBaseDark : cardBaseLight} p-4 rounded-xl w-full`}
-            >
-              <div className={theme === 'dark' ? 'text-gray-400 text-sm' : 'text-gray-600 text-sm'}>Typing...</div>
+            <div className="flex justify-start">
+              <div className={`rounded-2xl p-4 break-words max-w-[72%] ${cardAssistant}`}><div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Typing...</div></div>
             </div>
           )}
         </div>
@@ -261,49 +242,20 @@ export default function ChatPanel({ sessionId, onTitleUpdate }) {
 
       <div className="fixed left-0 right-0 bottom-0 z-50 pointer-events-auto">
         <div className="flex justify-center">
-          <div className="w-full max-w-3xl px-4 pb-4">
-            <div className="flex justify-center">
-              <div
-                className={`mx-auto w-full sm:max-w-[80%] md:max-w-[70%] lg:max-w-2xl flex items-center border rounded-full px-4 py-3 transition-all ${
-                  theme === 'dark'
-                    ? 'bg-gray-900 border-gray-800 shadow-sm'
-                    : 'bg-white border-gray-300 shadow-md'
-                }`}
-                style={{ transform: 'translateY(-6px)' }}
-              >
-                <input
-                  value={q}
-                  onChange={e => setQ(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  className={`flex-1 bg-transparent appearance-none outline-none py-1 rounded-full px-3 ${
-                    theme === 'dark' ? 'text-gray-100 placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'
-                  }`}
-                  autoComplete="off"
-                  placeholder={sessionId ? 'Ask a question...' : 'Start a session first'}
-                />
-
-                <button
-                  onClick={onSend}
-                  disabled={loading || !sessionId}
-                  className={`ml-3 px-4 py-2 rounded-full font-medium transition-all ${
-                    loading || !sessionId ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 text-white'
-                  }`}
-                >
-                  {loading ? '...' : 'Send'}
-                </button>
-              </div>
+          <div className="w-full max-w-3xl px-4 pb-6">
+            <div className={`mx-auto w-full flex items-center border rounded-full px-4 py-3 transition-all ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-300'}`} style={{ transform: 'translateY(-6px)' }}>
+              <textarea value={q} onChange={e => setQ(e.target.value)} onKeyDown={onKeyDown} rows={1} className={`flex-1 bg-transparent resize-none outline-none rounded-full px-3 py-1 ${theme === 'dark' ? 'text-gray-100 placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'}`} placeholder={sessionId ? 'Ask a question...' : 'Start a session first'} />
+              <button onClick={onSend} disabled={loading || !sessionId} className={`ml-3 px-4 py-2 rounded-full font-medium ${loading || !sessionId ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>{loading ? '...' : 'Send'}</button>
             </div>
           </div>
         </div>
       </div>
 
-      {showNewBtn && (
+      {/* {showNewBtn && (
         <div className="fixed right-6 bottom-28 z-50">
-          <button onClick={() => scrollToBottom()} className="px-4 py-2 rounded-full shadow-lg" style={{ background: '#2563eb', color: '#fff' }}>
-            New messages
-          </button>
+          <button onClick={() => scrollToBottom()} className="px-4 py-2 rounded-full shadow-lg" style={{ background: '#2563eb', color: '#fff' }}>New messages</button>
         </div>
-      )}
+      )} */}
     </div>
   )
 }

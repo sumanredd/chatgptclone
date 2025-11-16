@@ -35,6 +35,20 @@ function truncateTitle(t, n = 48) {
   return s.length > n ? s.slice(0, n - 3) + '...' : s
 }
 
+function insertSoftBreaksAvoidingUrls(s, maxLen = 60) {
+  if (!s) return s
+  return s.replace(/\S{60,}/g, m => {
+    if (/^https?:\/\//i.test(m)) return m
+    return m.replace(new RegExp(`(.{${maxLen}})`, 'g'), '$1\u200B')
+  })
+}
+
+function truncateReply(s, maxChars = 20000) {
+  if (!s) return s
+  if (s.length <= maxChars) return s
+  return s.slice(0, maxChars - 3) + '...'
+}
+
 async function askGemini(question) {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error("GEMINI_API_KEY missing in .env")
@@ -43,10 +57,7 @@ async function askGemini(question) {
 
   const payload = {
     contents: [{ parts: [{ text: question }] }],
-    generationConfig: {
-      maxOutputTokens: 2048,
-      temperature: 0.4
-    }
+    generationConfig: { maxOutputTokens: 2048, temperature: 0.4 }
   }
 
   const res = await fetch(url, {
@@ -61,7 +72,6 @@ async function askGemini(question) {
   }
 
   const data = await res.json()
-
   let text =
     data?.candidates?.[0]?.content?.parts?.[0]?.text ||
     data?.candidates?.[0]?.content?.parts?.map(p => p.text).join(" ") ||
@@ -79,10 +89,7 @@ async function askGeminiWithRetry(question, retries = 3) {
       return await askGemini(question)
     } catch (err) {
       const msg = String(err)
-      const retryable =
-        msg.includes("503") ||
-        msg.includes("500") ||
-        msg.includes("429")
+      const retryable = msg.includes("503") || msg.includes("500") || msg.includes("429")
       if (retryable && i < retries - 1) {
         await new Promise(r => setTimeout(r, 1000))
         continue
@@ -105,26 +112,32 @@ app.post("/api/start", (req, res) => {
   res.json({ sessionId: id, title: session.title })
 })
 
+function stripMarkdown(text) {
+  if (!text) return ''
+  return text
+    .replace(/^#+\s+/gm, '') // Remove all heading levels (# ## ### ####)
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold (**)
+    .replace(/__(.*?)__/g, '$1') // Remove bold (__)
+    .replace(/\*(.*?)\*/g, '$1') // Remove italic (*)
+    .replace(/_(.*?)_/g, '$1') // Remove italic (_)
+    .replace(/`(.*?)`/g, '$1') // Remove inline code (`)
+    .replace(/```(.*?)```/gs, '$1') // Remove code blocks
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links [text](url)
+    .replace(/!\[(.*?)\]\(.*?\)/g, '$1') // Remove images ![alt](url)
+    .replace(/[-*+]\s+/g, '') // Remove bullet points
+    .replace(/^\d+\.\s+/gm, '') // Remove numbered lists
+    .replace(/[#*_`~\[\]()]/g, '') // Remove any remaining markdown chars
+    .trim()
+}
+
 app.post("/api/ask", async (req, res) => {
   try {
     const { sessionId, question } = req.body
     if (!question) return res.status(400).json({ error: "question required" })
 
     const data = readData()
-
-    const session = data.sessions.find(s => s.id === sessionId)
-    if (!session) return res.status(404).json({ error: "session not found" })
-
-    
-    const userEntry = {
-      id: nanoid(8),
-      role: "user",
-      question
-    }
-    session.history.push(userEntry)
-
-
     let reply = ""
+
     if (isGreeting(question)) {
       reply = "Hello! How can I help you today?"
     } else {
@@ -135,26 +148,32 @@ app.post("/api/ask", async (req, res) => {
       }
     }
 
-  
     const answer = {
       id: nanoid(8),
-      role: "assistant",
-      response: reply,
-      feedback: { likes: 0, dislikes: 0 }
+      question,
+      response: { type: "text", text: reply || "" },
+      feedback: { likes: 0, dislikes: 0 },
+      from: "bot"
     }
 
-    
-    const currentTitle = String(session.title || '').trim()
-    if ((!currentTitle || currentTitle === 'New Chat') && !isGreeting(question)) {
-      session.title = truncateTitle(question)
+    const session = data.sessions.find(s => s.id === sessionId)
+    if (session) {
+      if ((session.title === "New Chat" || session.title.startsWith("Session")) && !isGreeting(question)) {
+        const cleanTitle = stripMarkdown(question)
+        session.title = truncateTitle(cleanTitle, 50)
+      }
+      session.history.push(answer)
+      writeData(data)
     }
 
-    
-    session.history.push(answer)
-
-    writeData(data)
-    res.json(answer)
-
+    res.json({
+      id: answer.id,
+      question: answer.question,
+      response: answer.response,
+      feedback: answer.feedback,
+      sessionId: sessionId,
+      sessionTitle: session?.title || "New Chat"
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -175,32 +194,21 @@ app.get("/api/session/:id", (req, res) => {
 app.post("/api/feedback", (req, res) => {
   const { sessionId, answerId, type } = req.body
   const data = readData()
-
   const session = data.sessions.find(s => s.id === sessionId)
   if (!session) return res.status(404).json({ error: "session not found" })
-
   const answer = session.history.find(h => h.id === answerId)
   if (!answer) return res.status(404).json({ error: "answer not found" })
-
-  if (!answer.feedback) {
-    answer.feedback = { likes: 0, dislikes: 0 }
-  }
-
+  if (!answer.feedback) answer.feedback = { likes: 0, dislikes: 0 }
   if (type === "like") {
     answer.feedback.likes = answer.feedback.likes === 1 ? 0 : 1
     answer.feedback.dislikes = 0
   }
-
   if (type === "dislike") {
     answer.feedback.dislikes = answer.feedback.dislikes === 1 ? 0 : 1
     answer.feedback.likes = 0
   }
-
   writeData(data)
-
-  res.json({
-    feedback: answer.feedback
-  })
+  res.json({ feedback: answer.feedback })
 })
 
 app.delete("/api/session/:id", (req, res) => {
