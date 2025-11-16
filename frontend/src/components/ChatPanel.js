@@ -21,7 +21,7 @@ export default function ChatPanel({ sessionId, onTitleUpdate, onSessionUpdate })
   const messagesRef = useRef(null)
 
   const INPUT_HEIGHT = 96
-  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:4000'
+  const API_BASE = "https://chatgptclone-4.onrender.com" || 'http://localhost:4000'
 
   useEffect(() => {
     setError(null)
