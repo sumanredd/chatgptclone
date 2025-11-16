@@ -111,8 +111,20 @@ app.post("/api/ask", async (req, res) => {
     if (!question) return res.status(400).json({ error: "question required" })
 
     const data = readData()
-    let reply = ""
 
+    const session = data.sessions.find(s => s.id === sessionId)
+    if (!session) return res.status(404).json({ error: "session not found" })
+
+    
+    const userEntry = {
+      id: nanoid(8),
+      role: "user",
+      question
+    }
+    session.history.push(userEntry)
+
+
+    let reply = ""
     if (isGreeting(question)) {
       reply = "Hello! How can I help you today?"
     } else {
@@ -123,25 +135,26 @@ app.post("/api/ask", async (req, res) => {
       }
     }
 
+  
     const answer = {
       id: nanoid(8),
-      question,
-      response: { type: "text", text: reply },
-      feedback: { likes: 0, dislikes: 0 },
-      from: "bot"
+      role: "assistant",
+      response: reply,
+      feedback: { likes: 0, dislikes: 0 }
     }
 
-    const session = data.sessions.find(s => s.id === sessionId)
-    if (session) {
-      const currentTitle = String(session.title || '').trim()
-      if ((!currentTitle || currentTitle === 'New Chat') && !isGreeting(question)) {
-        session.title = truncateTitle(question)
-      }
-      session.history.push(answer)
-      writeData(data)
+    
+    const currentTitle = String(session.title || '').trim()
+    if ((!currentTitle || currentTitle === 'New Chat') && !isGreeting(question)) {
+      session.title = truncateTitle(question)
     }
 
+    
+    session.history.push(answer)
+
+    writeData(data)
     res.json(answer)
+
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
