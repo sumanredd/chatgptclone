@@ -1,8 +1,16 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useState, useRef } from 'react'
 import { ThemeContext } from '../ThemeContext'
 
 export default function LeftPanel({ sessions, collapsed, setCollapsed, onNew, onOpen, loading, onDelete }) {
   const { theme } = useContext(ThemeContext)
+  const [titles, setTitles] = useState({})
+  const mountedRef = useRef(true)
+  const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   function isGreeting(text) {
     if (!text) return false
@@ -10,7 +18,13 @@ export default function LeftPanel({ sessions, collapsed, setCollapsed, onNew, on
     return /^(hi|hello|hey|hlo|yo)([!. ]|$)/i.test(t)
   }
 
-  function titleFromSession(s) {
+  function truncateTitle(t, n = 48) {
+    if (!t) return 'New Chat'
+    const s = String(t).trim()
+    return s.length > n ? s.slice(0, n - 3) + '...' : s
+  }
+
+  function titleFromSessionObject(s) {
     if (s.title && s.title !== 'New Chat' && String(s.title).trim() !== '') return s.title
     const hist = s.history || []
     for (let i = 0; i < hist.length; i++) {
@@ -19,57 +33,118 @@ export default function LeftPanel({ sessions, collapsed, setCollapsed, onNew, on
       if (!q) continue
       if (!isGreeting(q)) {
         const t = String(q).trim()
-        return t.length > 48 ? t.slice(0, 45) + '...' : t
+        return truncateTitle(t)
       }
     }
     return 'New Chat'
   }
 
-  return (
-    <div className={`transition-all ${collapsed ? 'w-16' : 'w-72'} h-screen flex flex-col ${theme === 'dark' ? 'bg-black border-r border-gray-800 text-gray-100' : 'bg-white border-r text-black'}`}>
-      <div className="p-3 flex items-center justify-between">
-        <button onClick={onNew} className="px-3 py-2 bg-blue-500 text-white rounded">New Chat</button>
+  useEffect(() => {
+    if (!sessions || sessions.length === 0) return
+    sessions.forEach(s => {
+      const id = s.id || s.sessionId || s._id
+      if (!id) return
+      const current = s.title && s.title !== 'New Chat' && String(s.title).trim() !== '' ? s.title : null
+      if (titles[id]) return
+      if (current) {
+        setTitles(prev => ({ ...prev, [id]: current }))
+        return
+      }
 
+      ;(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/session/${id}`)
+          if (!res.ok) return
+          const json = await res.json()
+          const derived = titleFromSessionObject(json)
+          if (!mountedRef.current) return
+          setTitles(prev => {
+            if (prev[id] === derived) return prev
+            return { ...prev, [id]: derived }
+          })
+        } catch (e) {
+        }
+      })()
+    })
+  }, [sessions])
+
+  function badgeText(title) {
+    if (!title) return 'N'
+    const parts = title.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return (parts[0][0] + (parts[1][0] || '')).toUpperCase()
+  }
+
+  const panelBg = theme === 'dark' ? 'bg-black border-r border-gray-800 text-gray-100' : 'bg-white border-r text-black'
+  const hoverBg = theme === 'dark' ? 'hover:bg-gray-900' : 'hover:bg-gray-100'
+
+  if (collapsed) {
+    return (
+      <div className={`transition-all w-10 sm:w-12 h-screen flex flex-col items-center ${panelBg} overflow-hidden`}>
+        <div className="mt-3">
+          <button onClick={onNew} title="New Chat" className="p-2 rounded bg-blue-500 text-white flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <button
+            onClick={() => setCollapsed(false)}
+            className={`p-2 rounded border ${theme === 'dark' ? 'border-gray-700 text-gray-100' : 'border-gray-300 text-black'}`}
+            aria-label="Expand"
+          >
+            →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`transition-all w-56 sm:w-72 h-screen flex flex-col ${panelBg}`}>
+      <div className="p-2 flex items-center justify-between">
+        <button onClick={onNew} className="px-3 py-2 bg-blue-500 text-white rounded">New Chat</button>
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className={`px-2 py-1 rounded border ${theme === 'dark' ? 'border-gray-700 text-gray-100' : 'border-gray-300 text-black'} md:hidden`}
+          onClick={() => setCollapsed(true)}
+          className={`p-2 rounded border ${theme === 'dark' ? 'border-gray-700 text-gray-100' : 'border-gray-300 text-black'}`}
+          aria-label="Collapse"
         >
-          {collapsed ? '→' : '←'}
+          ←
         </button>
       </div>
 
-      <div className="p-3 overflow-auto flex-1">
+      <div className="p-2 overflow-auto flex-1">
         {loading && <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm mb-2`}>Loading...</div>}
         {sessions.length === 0 && !loading && <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>No sessions yet</div>}
 
         {sessions.map(s => {
           const id = s.id || s.sessionId || s._id
-          const displayTitle = titleFromSession(s)
+          const rawTitle = s.title && s.title !== 'New Chat' && String(s.title).trim() !== '' ? s.title : null
+          const displayTitle = rawTitle || titles[id] || 'New Chat'
+
           return (
             <div
               key={id}
-              className={`p-2 cursor-pointer ${theme === 'dark' ? 'hover:bg-gray-900' : 'hover:bg-gray-100'} rounded mb-1 flex justify-between items-center group`}
+              className={`p-2 cursor-pointer ${hoverBg} rounded mb-1 flex justify-between items-center group`}
               onClick={() => onOpen(id)}
             >
               <span className="flex-1 truncate" title={displayTitle}>
                 <span className={theme === 'dark' ? 'text-gray-100' : 'text-black'}>{displayTitle}</span>
               </span>
 
-              {!collapsed && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(id)
-                  }}
-                  className="text-red-500 opacity-0 group-hover:opacity-100 px-2 py-1"
-                >
-                  🗑️
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(id)
+                }}
+                className="text-red-500 opacity-0 group-hover:opacity-100 px-2 py-1"
+              >
+                🗑️
+              </button>
             </div>
           )
         })}
-
       </div>
     </div>
   )

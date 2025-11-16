@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useContext } from 'react'
 import TableAnswer from '../components/TableAnswer'
 import { ThemeContext } from '../ThemeContext'
 
-export default function ChatPanel({ sessionId }) {
+export default function ChatPanel({ sessionId, onTitleUpdate }) {
   const { theme } = useContext(ThemeContext)
 
   useEffect(() => {
@@ -21,8 +21,19 @@ export default function ChatPanel({ sessionId }) {
   const messagesRef = useRef(null)
 
   const INPUT_HEIGHT = 96
-  const API_BASE = 'https://chatgptclone-1-ysfy.onrender.com'
+  const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
 
+  function isGreeting(text) {
+    if (!text) return false
+    const t = text.toLowerCase().trim()
+    return /^(hi|hello|hey|hlo|yo)([!. ]|$)/i.test(t)
+  }
+
+  function truncateTitle(t, n = 48) {
+    if (!t) return ''
+    const s = String(t).trim()
+    return s.length > n ? s.slice(0, n - 3) + '...' : s
+  }
 
   useEffect(() => {
     setError(null)
@@ -118,6 +129,16 @@ export default function ChatPanel({ sessionId }) {
           feedback: answer?.feedback ?? null
         }
         setHistory(prev => [...prev, assistantMsg])
+
+        // update left panel title immediately for first non-greeting question
+        try {
+          if (typeof onTitleUpdate === 'function' && !isGreeting(question)) {
+            const newTitle = truncateTitle(question)
+            onTitleUpdate(sessionId, newTitle)
+          }
+        } catch (e) {
+          // ignore any errors from callback
+        }
       })
       .catch(() => {
         setError('Failed to send question. Check console / backend.')

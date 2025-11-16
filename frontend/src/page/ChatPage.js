@@ -4,8 +4,6 @@ import TopBar from '../components/TopBar'
 import ChatPanel from '../components/ChatPanel'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ThemeContext } from '../ThemeContext'
-const API_BASE = 'https://chatgptclone-1-ysfy.onrender.com'
-
 
 export default function ChatPage() {
   const { theme } = useContext(ThemeContext)
@@ -15,6 +13,7 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const [activeSession, setActiveSession] = useState(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const API_BASE = 'https://chatgptclone-2-vq73.onrender.com'
 
   useEffect(() => {
     fetchSessions()
@@ -24,10 +23,10 @@ export default function ChatPage() {
     setLoadingSessions(true)
     try {
       const res = await fetch(`${API_BASE}/api/sessions`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       const list = json || []
       setSessions(list)
-
       if (params.sessionId) {
         setActiveSession(params.sessionId)
       } else if (list.length > 0) {
@@ -85,6 +84,7 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: `Session ${Date.now()}` })
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const j = await res.json()
       const id = j.sessionId || j.id || j._id
       await fetchSessions()
@@ -104,6 +104,18 @@ export default function ChatPage() {
   function handleOpen(id) {
     navigate(`/chat/${id}`)
     setActiveSession(id)
+  }
+
+  function handleTitleUpdate(sessionId, newTitle) {
+    setSessions(prev =>
+      prev.map(s => {
+        const sid = s.id || s.sessionId || s._id
+        if (sid === sessionId) {
+          return { ...s, title: newTitle }
+        }
+        return s
+      })
+    )
   }
 
   const pageBg = theme === 'dark' ? '#000000' : '#ffffff'
@@ -130,7 +142,7 @@ export default function ChatPage() {
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeSession ? (
             <div className="h-full min-h-0">
-              <ChatPanel key={activeSession} sessionId={activeSession} />
+              <ChatPanel key={activeSession} sessionId={activeSession} onTitleUpdate={handleTitleUpdate} />
             </div>
           ) : (
             <div className="h-full min-h-0 flex items-center justify-center p-6">
