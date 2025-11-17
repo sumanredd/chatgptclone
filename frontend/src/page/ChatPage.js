@@ -14,7 +14,7 @@ export default function ChatPage() {
   const [activeSession, setActiveSession] = useState(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
 
-  const API_BASE = "https://chatgptclone-4.onrender.com" || 'http://localhost:4000'
+  const API_BASE = "https://chatgptclone-4.onrender.com"
   useEffect(() => {
     fetchSessions()
   }, [])

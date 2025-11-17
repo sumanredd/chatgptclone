@@ -21,7 +21,7 @@ export default function ChatPanel({ sessionId, onTitleUpdate, onSessionUpdate })
   const messagesRef = useRef(null)
 
   const INPUT_HEIGHT = 96
-  const API_BASE = "https://chatgptclone-4.onrender.com" || 'http://localhost:4000'
+  const API_BASE = "https://chatgptclone-4.onrender.com"
 
   useEffect(() => {
     setError(null)
@@ -187,9 +187,9 @@ export default function ChatPanel({ sessionId, onTitleUpdate, onSessionUpdate })
 
       <div ref={messagesRef} onScroll={handleScroll} className="absolute left-0 right-0 top-0 overflow-y-auto px-4 py-6" style={{ bottom: `${INPUT_HEIGHT}px` }}>
         <div className="max-w-3xl mx-auto w-full flex flex-col gap-4">
-          <div className={`pt-2 pb-4 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+          {/* <div className={`pt-2 pb-4 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Chat</div>
-          </div>
+          </div> */}
 
           {history.length === 0 && (
             <div className={`text-center py-12 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>No messages yet. Start by sending a question.</div>
